@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ValDoc — GxP Validation Document Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4F2ED;--bg-card:#FAFAF8;--bg-dark:#1C1C1A;
+  --text:#1C1C1A;--text-muted:#7A7870;--text-faint:#B0AEA8;
+  --border:rgba(0,0,0,0.1);--border-mid:rgba(0,0,0,0.18);
+  --accent:#0C447C;--accent-light:#E6F1FB;--accent-mid:#185FA5;
+  --green:#3B6D11;--green-bg:#EAF3DE;
+  --amber:#854F0B;--amber-bg:#FEF3E2;
+  --red:#A32D2D;--red-bg:#FCEBEB;
+  --teal:#0F6E56;--teal-bg:#E1F5EE;
+  --purple:#534AB7;--purple-bg:#EEEDFE;
+  --r:10px;--rs:6px;
+  --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* HEADER */
+.app-header{background:var(--bg-dark);color:#F4F2ED;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;height:54px;position:sticky;top:0;z-index:200}
+.logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;letter-spacing:-.01em;color:#F4F2ED;text-decoration:none}
+.logo-icon{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#E6F1FB;font-family:var(--mono)}
+.logo-badges{display:flex;gap:6px}
+.hbadge{font-size:9px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:20px;border:.5px solid}
+.hbadge.blue{background:rgba(12,68,124,.4);color:#85B7EB;border-color:#185FA5}
+.hbadge.green{background:rgba(59,109,17,.3);color:#97C459;border-color:#3B6D11}
+.hbadge.v{background:rgba(255,255,255,.08);color:#9A988E;border-color:rgba(255,255,255,.15)}
+
+/* LAYOUT */
+.app-body{display:flex;min-height:calc(100vh - 54px)}
+
+/* SIDEBAR */
+.sidebar{width:252px;flex-shrink:0;background:#ECEAE3;border-right:.5px solid var(--border);padding:1.25rem 0;position:sticky;top:54px;height:calc(100vh - 54px);overflow-y:auto}
+.sb-label{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);padding:.75rem 1.25rem .35rem;margin-top:.5rem}
+.sb-label:first-child{margin-top:0}
+.sb-phase{font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.25rem .2rem;color:var(--text-faint)}
+.doc-item{display:flex;align-items:center;gap:8px;padding:.45rem 1.25rem;cursor:pointer;border-left:2px solid transparent;font-size:12.5px;color:var(--text-muted);transition:background .1s,color .1s;user-select:none}
+.doc-item:hover{background:rgba(0,0,0,0.05);color:var(--text)}
+.doc-item.active{background:var(--accent-light);border-left-color:var(--accent);color:var(--accent);font-weight:500}
+.doc-item.locked{opacity:.45;cursor:not-allowed}
+.doc-item.locked:hover{background:none;color:var(--text-muted)}
+.doc-num{font-family:var(--mono);font-size:9px;color:var(--text-faint);min-width:16px}
+.doc-item.active .doc-num{color:var(--accent-mid)}
+.lock-icon{font-size:9px;margin-left:auto;opacity:.5}
+
+/* MAIN */
+.main{flex:1;padding:2rem 2.5rem 5rem;max-width:900px}
+
+/* HOME */
+.home-hero{margin-bottom:2.5rem}
+.eyebrow{font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint);margin-bottom:.6rem}
+.home-title{font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.2;margin-bottom:.6rem}
+.home-sub{font-size:15px;color:var(--text-muted);max-width:520px;line-height:1.65;margin-bottom:1.25rem}
+.badges-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2rem}
+.badge{font-size:11px;font-weight:500;letter-spacing:.05em;padding:4px 12px;border-radius:20px;border:.5px solid}
+.badge.blue{background:var(--accent-light);color:var(--accent);border-color:var(--accent-mid)}
+.badge.green{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+.badge.amber{background:var(--amber-bg);color:var(--amber);border-color:var(--amber)}
+.badge.purple{background:var(--purple-bg);color:var(--purple);border-color:var(--purple)}
+
+/* Phase sections on home */
+.phase-section{margin-bottom:2rem}
+.phase-header{display:flex;align-items:center;gap:10px;margin-bottom:.85rem}
+.phase-label{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:20px}
+.phase-label.analysis{background:var(--accent-light);color:var(--accent)}
+.phase-label.design{background:var(--purple-bg);color:var(--purple)}
+.phase-label.devtest{background:var(--teal-bg);color:var(--teal)}
+.phase-label.deploy{background:var(--green-bg);color:var(--green)}
+.phase-line{flex:1;height:.5px;background:var(--border)}
+
+.doc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.doc-card{background:var(--bg-card);border:.5px solid var(--border);border-radius:var(--r);padding:1.1rem;cursor:pointer;transition:border-color .15s}
+.doc-card:hover{border-color:var(--accent-mid)}
+.doc-card.locked-card{opacity:.5;cursor:not-allowed;background:rgba(0,0,0,0.02)}
+.doc-card.locked-card:hover{border-color:var(--border)}
+.dc-num{font-family:var(--mono);font-size:10px;color:var(--text-faint);margin-bottom:.4rem}
+.dc-name{font-size:13px;font-weight:500;color:var(--text);line-height:1.35;margin-bottom:.3rem}
+.dc-tag{font-size:11px;color:var(--text-muted)}
+.dc-lock{font-size:11px;color:var(--text-faint);margin-top:.4rem}
+
+/* ROADMAP */
+.roadmap{background:var(--bg-card);border:.5px solid var(--border);border-radius:var(--r);padding:1.5rem;margin-top:2rem}
+.roadmap-title{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:1rem}
+.rm-rows{display:flex;flex-direction:column;gap:12px}
+.rm-row{display:flex;align-items:flex-start;gap:12px}
+.rm-dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;flex-shrink:0;margin-top:1px}
+.rm-dot.v1{background:var(--accent);color:#E6F1FB}
+.rm-dot.v2{background:var(--amber-bg);color:var(--amber);border:.5px solid var(--amber)}
+.rm-dot.v3{background:var(--bg);color:var(--text-faint);border:.5px solid var(--border-mid)}
+.rm-body{font-size:13px;color:var(--text);line-height:1.55}
+.rm-body strong{font-weight:500}
+.rm-body .rm-sub{font-size:12px;color:var(--text-muted)}
+
+/* FORM VIEW */
+.form-back{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--text-muted);cursor:pointer;background:none;border:none;padding:0;font-family:var(--font);margin-bottom:1.25rem}
+.form-back:hover{color:var(--text)}
+.form-eyebrow{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:.35rem}
+.form-title{font-size:26px;font-weight:600;letter-spacing:-.015em;margin-bottom:.4rem}
+.form-desc{font-size:14px;color:var(--text-muted);margin-bottom:1.5rem;max-width:560px;line-height:1.6}
+
+/* Progress */
+.progress-wrap{margin-bottom:2rem}
+.progress-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:.4rem}
+.progress-track{background:rgba(0,0,0,0.08);border-radius:20px;height:3px}
+.progress-fill{background:var(--accent);height:3px;border-radius:20px;transition:width .3s ease}
+
+/* Form sections */
+.form-section{margin-bottom:2.5rem}
+.section-heading{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border-bottom:.5px solid var(--border);padding-bottom:.5rem;margin-bottom:1.25rem}
+
+/* Fields */
+.field{margin-bottom:1.1rem}
+.field-label{font-size:13px;font-weight:500;color:var(--text);margin-bottom:.25rem;display:flex;align-items:center;gap:5px}
+.req{color:var(--red);font-size:11px}
+.field-hint{font-size:12px;color:var(--amber);background:var(--amber-bg);border-left:2px solid var(--amber);border-radius:0 var(--rs) var(--rs) 0;padding:.35rem .75rem;margin-bottom:.45rem;line-height:1.5}
+input[type=text],input[type=date],input[type=email],select,textarea{width:100%;background:var(--bg-card);border:.5px solid var(--border-mid);border-radius:var(--rs);padding:.55rem .8rem;font-family:var(--font);font-size:13.5px;color:var(--text);outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px;line-height:1.6}
+select{cursor:pointer;appearance:auto}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* RTM table builder */
+.rtm-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:.75rem}
+.rtm-table th{background:var(--accent-light);color:var(--accent);font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:.5rem .6rem;text-align:left;border:.5px solid rgba(12,68,124,.2)}
+.rtm-table td{padding:.35rem .5rem;border:.5px solid var(--border-mid);vertical-align:top}
+.rtm-table td input{border:none;background:transparent;width:100%;font-size:12.5px;padding:0;outline:none;font-family:var(--font)}
+.rtm-table tr:hover td{background:rgba(230,241,251,.3)}
+.add-row-btn{font-size:12px;color:var(--accent-mid);cursor:pointer;background:none;border:.5px dashed var(--accent-mid);border-radius:var(--rs);padding:.35rem .85rem;font-family:var(--font);transition:background .12s}
+.add-row-btn:hover{background:var(--accent-light)}
+.del-row{color:var(--red);cursor:pointer;font-size:11px;background:none;border:none;padding:0 3px}
+
+/* Risk table */
+.risk-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:.75rem}
+.risk-table th{background:var(--red-bg);color:var(--red);font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;padding:.5rem .6rem;text-align:left;border:.5px solid rgba(163,45,45,.2)}
+.risk-table td{padding:.35rem .5rem;border:.5px solid var(--border-mid);vertical-align:top}
+.risk-table td input,.risk-table td select{border:none;background:transparent;width:100%;font-size:12.5px;padding:0;outline:none;font-family:var(--font)}
+
+/* Buttons */
+.btn-row{display:flex;gap:10px;margin-top:2rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:.65rem 1.25rem;border-radius:var(--rs);font-size:13.5px;font-weight:500;cursor:pointer;border:none;font-family:var(--font);transition:opacity .15s}
+.btn:hover{opacity:.85}
+.btn.primary{background:var(--accent);color:var(--accent-light)}
+.btn.secondary{background:var(--bg-card);color:var(--text);border:.5px solid var(--border-mid)}
+.btn.success{background:var(--green);color:var(--green-bg)}
+.btn.danger{background:var(--red-bg);color:var(--red);border:.5px solid rgba(163,45,45,.2)}
+
+/* PREVIEW */
+.preview-wrap{background:#fff;border:.5px solid var(--border);border-radius:var(--r);padding:3rem;margin-top:2rem;font-size:13.5px;line-height:1.75;color:#222}
+.preview-wrap h1{font-size:20px;font-weight:600;text-align:center;margin-bottom:.5rem;color:#111}
+.preview-wrap h2{font-size:15px;font-weight:600;margin:2rem 0 .5rem;border-bottom:1px solid #ddd;padding-bottom:.4rem;color:#111}
+.preview-wrap h3{font-size:13.5px;font-weight:600;margin:1rem 0 .3rem;color:#333}
+.preview-wrap p{margin-bottom:.6rem}
+.preview-wrap table{width:100%;border-collapse:collapse;font-size:12.5px;margin:.75rem 0}
+.preview-wrap th{background:#f0efe9;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:.45rem .65rem;border:1px solid #ddd;text-align:left}
+.preview-wrap td{padding:.4rem .65rem;border:1px solid #ddd;vertical-align:top}
+.preview-meta{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;background:#f8f8f6;border:1px solid #eee;border-radius:6px;padding:1rem;margin:.75rem 0;font-size:12.5px}
+.preview-meta-item{display:flex;flex-direction:column;gap:2px}
+.preview-meta-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#888}
+.preview-meta-value{color:#222;font-weight:500}
+.doc-header-bar{background:#0C447C;color:#E6F1FB;padding:.75rem 1.5rem;border-radius:6px;margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+.doc-std-badges{display:flex;gap:6px}
+.doc-std-badge{background:rgba(255,255,255,.15);border-radius:20px;padding:2px 8px;font-size:10px;letter-spacing:.06em}
+.sig-block{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;margin-top:2rem;border-top:1px solid #ddd;padding-top:1rem}
+.sig-box{display:flex;flex-direction:column;gap:4px}
+.sig-line{border-bottom:1px solid #888;height:32px;margin-bottom:4px}
+.sig-label{font-size:11px;color:#666}
+
+/* Locked screen */
+.locked-screen{text-align:center;padding:4rem 2rem}
+.locked-screen .lock-big{font-size:48px;margin-bottom:1rem;opacity:.3}
+.locked-screen h2{font-size:20px;font-weight:500;margin-bottom:.5rem}
+.locked-screen p{font-size:14px;color:var(--text-muted);max-width:380px;margin:0 auto 1.5rem}
+.coming-badge{display:inline-block;background:var(--amber-bg);color:var(--amber);border:.5px solid var(--amber);border-radius:20px;font-size:11px;font-weight:500;padding:4px 14px;letter-spacing:.06em}
+
+/* Toast */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--bg-dark);color:#F4F2ED;border-radius:var(--r);padding:.85rem 1.25rem;font-size:13px;display:none;align-items:center;gap:8px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.2)}
+.toast.show{display:flex}
+
+@media print{
+  .app-header,.sidebar,.btn-row,.form-header,.progress-wrap,.form-desc,.form-eyebrow,.form-back,.form-title{display:none!important}
+  .app-body{display:block}
+  .main{padding:0;max-width:100%}
+  .preview-wrap{border:none;padding:1.5rem 2rem;box-shadow:none}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">
+    <div class="logo-icon">V</div>
+    ValDoc
+  </div>
+  <div class="logo-badges">
+    <span class="hbadge blue">21 CFR Part 11</span>
+    <span class="hbadge green">Annex 11</span>
+    <span class="hbadge v">v1.0 · Analysis Phase</span>
+  </div>
+</header>
+
+<div class="app-body">
+  <nav class="sidebar" id="sidebar">
+    <div class="sb-label">Navigation</div>
+    <div class="doc-item active" onclick="showHome()" id="nav-home">
+      <span class="doc-num">⌂</span> Home
+    </div>
+
+    <div class="sb-label">Analysis Phase</div>
+    <div class="doc-item" onclick="showDoc(0)" id="nav-0"><span class="doc-num">01</span> Risk Assessment</div>
+    <div class="doc-item" onclick="showDoc(1)" id="nav-1"><span class="doc-num">02</span> Validation Plan</div>
+    <div class="doc-item" onclick="showDoc(2)" id="nav-2"><span class="doc-num">03</span> URS</div>
+    <div class="doc-item" onclick="showDoc(3)" id="nav-3"><span class="doc-num">04</span> RRAT</div>
+
+    <div class="sb-label">Design Phase</div>
+    <div class="doc-item locked"><span class="doc-num">05</span> PDS <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">06</span> Deployment Plan <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">07</span> CCMP <span class="lock-icon">🔒</span></div>
+
+    <div class="sb-label">Testing Phase</div>
+    <div class="doc-item locked"><span class="doc-num">08</span> Test Plan <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">09</span> Test Scripts IQ/OQ/PQ <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">10</span> Traceability Matrix <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">11</span> Defect & Issue Log <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">12</span> Test Summary Report <span class="lock-icon">🔒</span></div>
+
+    <div class="sb-label">Deployment Phase</div>
+    <div class="doc-item locked"><span class="doc-num">13</span> SOP / Work Instructions <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">14</span> Validation Summary <span class="lock-icon">🔒</span></div>
+    <div class="doc-item locked"><span class="doc-num">15</span> Change Log <span class="lock-icon">🔒</span></div>
+  </nav>
+
+  <main class="main" id="main-content"></main>
+</div>
+
+<div class="toast" id="toast">✓ <span id="toast-msg"></span></div>
+
+<script>
+// ─────────────────────────────────────────────
+// TEMPLATE DEFINITIONS
+// ─────────────────────────────────────────────
+const DOCS = [
+  {
+    id: 0,
+    num: '01',
+    name: 'Risk Assessment',
+    phase: 'Analysis',
+    abbr: 'RA',
+    desc: 'Identifies, evaluates, and prioritises risks to system validation. Required before validation activities commence per 21 CFR Part 11 and Annex 11 §1.',
+    sections: [
+      {
+        title: 'Document Information',
+        fields: [
+          {id:'ra_doc_id',label:'Document ID',type:'text',req:true,hint:'Assign a unique document identifier, e.g. RA-SYS-001. Required for traceability under 21 CFR Part 11.'},
+          {id:'ra_sys_name',label:'System / Application Name',type:'text',req:true,hint:'Full name of the computerised system being validated, as per the system inventory.'},
+          {id:'ra_version',label:'Document Version',type:'text',req:true,hint:'Start at 1.0. Increment for each approved revision. Per Annex 11 §4.3, version history must be maintained.'},
+          {id:'ra_date',label:'Date',type:'date',req:true,hint:'Date this risk assessment is created or last revised.'},
+          {id:'ra_author',label:'Prepared By',type:'text',req:true,hint:'Name and role of the person completing this assessment.'},
+          {id:'ra_system_owner',label:'System Owner',type:'text',req:true,hint:'Responsible business owner for the system being assessed.'},
+          {id:'ra_gamp_cat',label:'GAMP 5 Category',type:'select',req:true,options:['Select…','Category 1 – Infrastructure','Category 3 – Non-configured software','Category 4 – Configured software','Category 5 – Custom software'],hint:'Classify per GAMP 5. Category determines the depth of validation effort required.'},
+        ]
+      },
+      {
+        title: 'System Overview',
+        fields: [
+          {id:'ra_purpose',label:'System Purpose / Business Function',type:'textarea',req:true,hint:'Describe what the system does, the business process it supports, and how it is used within the GxP environment.'},
+          {id:'ra_gxp_impact',label:'GxP Impact Assessment',type:'select',req:true,options:['Select…','Direct GxP Impact','Indirect GxP Impact','No GxP Impact'],hint:'Per Annex 11 §1: systems directly supporting GxP processes (batch records, audit trails, e-signatures) have direct impact. Systems used by GxP staff but not recording regulated data have indirect impact.'},
+          {id:'ra_regulatory_scope',label:'Applicable Regulations',type:'textarea',req:true,hint:'List all applicable regulations, e.g.: 21 CFR Part 11 (electronic records), EU Annex 11, GAMP 5, 21 CFR Part 820 (if medical device). Include any ICH guidelines relevant to your organisation.'},
+          {id:'ra_data_types',label:'Types of Regulated Data Handled',type:'textarea',req:false,hint:'Describe data types: electronic batch records, audit trails, e-signatures, clinical data, lab results, etc. This informs Part 11 compliance requirements.'},
+        ]
+      },
+      {
+        title: 'Risk Identification & Evaluation',
+        type: 'risk-table',
+        hint: 'Identify all risks to validation integrity. Rate Likelihood and Impact 1 (Low) – 3 (High). Risk Score = Likelihood × Impact. Score 1–2 = Low, 3–4 = Medium, 6–9 = High. Per GAMP 5, risk assessment must be documented and reviewed.',
+      },
+      {
+        title: 'Risk Acceptance & Approval',
+        fields: [
+          {id:'ra_residual',label:'Residual Risk Statement',type:'textarea',req:true,hint:'After all mitigations are applied, describe the remaining residual risk level and rationale for acceptance. Per Annex 11 §1, risk management is a continuous lifecycle activity.'},
+          {id:'ra_approval',label:'Risk Acceptance Decision',type:'select',req:true,options:['Select…','Accepted – proceed with validation','Conditionally accepted – pending mitigations','Not accepted – escalation required'],hint:'Formal acceptance decision by the Validation Lead or QA.'},
+          {id:'ra_review_freq',label:'Review Frequency',type:'select',req:true,options:['Select…','Per change (minimum)','Annually','Bi-annually','Per validation phase'],hint:'Risk assessments must be reviewed when the system changes and at defined intervals per your SOPs.'},
+          {id:'ra_notes',label:'Additional Notes / Observations',type:'textarea',req:false,hint:'Any additional context, escalation notes, or cross-references to related documents.'},
+        ]
+      }
+    ]
+  },
+  {
+    id: 1,
+    num: '02',
+    name: 'Validation Plan',
+    phase: 'Analysis',
+    abbr: 'VP',
+    desc: 'Master document defining the scope, approach, responsibilities, and schedule for validation activities. Required by 21 CFR Part 11 §11.10 and Annex 11 §4.',
+    sections: [
+      {
+        title: 'Document Information',
+        fields: [
+          {id:'vp_doc_id',label:'Document ID',type:'text',req:true,hint:'Unique identifier, e.g. VP-SYS-001. Must be traceable to your validation master plan.'},
+          {id:'vp_sys_name',label:'System Name',type:'text',req:true,hint:'Full name as recorded in the system inventory and project charter.'},
+          {id:'vp_version',label:'Version',type:'text',req:true,hint:'Document version, start at 1.0. All versions must be archived per 21 CFR Part 11 §11.10(c).'},
+          {id:'vp_date',label:'Effective Date',type:'date',req:true,hint:'Date of approval. The validation plan must be approved before validation activities start.'},
+          {id:'vp_author',label:'Prepared By (Validation Lead)',type:'text',req:true,hint:'Name and title of the Validation Lead responsible for this plan.'},
+          {id:'vp_reviewer',label:'Reviewed By (QA)',type:'text',req:true,hint:'Name and title of the QA reviewer. Per Annex 11 §2, QA must be involved throughout.'},
+          {id:'vp_approver',label:'Approved By',type:'text',req:true,hint:'Name and title of the approving authority (typically QA Manager or VP Operations).'},
+        ]
+      },
+      {
+        title: 'Scope & Objectives',
+        fields: [
+          {id:'vp_objective',label:'Validation Objective',type:'textarea',req:true,hint:'State the purpose: to provide documented evidence that the system consistently performs as intended within its defined environment. Reference 21 CFR §211.68 or applicable regulation.'},
+          {id:'vp_scope_incl',label:'In Scope',type:'textarea',req:true,hint:'List all functions, modules, interfaces, and processes included in this validation effort. Be specific — what is explicitly covered.'},
+          {id:'vp_scope_excl',label:'Out of Scope',type:'textarea',req:true,hint:'Explicitly list what is excluded and why. Undocumented exclusions are a common audit finding.'},
+          {id:'vp_approach',label:'Validation Approach',type:'select',req:true,options:['Select…','Prospective – before system goes live (new systems)','Retrospective – after system is in use (legacy systems)','Concurrent – validation during live operation','Re-validation – following significant change'],hint:'Prospective validation is preferred and required for new GxP systems. Retrospective is only acceptable for legacy systems with documented rationale per GAMP 5.'},
+          {id:'vp_gamp_cat',label:'GAMP 5 Category',type:'select',req:true,options:['Select…','Category 1 – Infrastructure','Category 3 – Non-configured software','Category 4 – Configured software','Category 5 – Custom software'],hint:'Category determines which deliverables are required. Cat 4 typically requires IQ/OQ/PQ. Cat 5 also requires DS and code review.'},
+        ]
+      },
+      {
+        title: 'Regulatory Framework',
+        fields: [
+          {id:'vp_regs',label:'Applicable Regulations & Standards',type:'textarea',req:true,hint:'List all: 21 CFR Part 11, EU Annex 11, GAMP 5, applicable ICH guidelines (Q10, E6), ISO 13485 if medical device, company SOPs. Both US FDA and EU EMA may inspect.'},
+          {id:'vp_part11_scope',label:'21 CFR Part 11 Applicability',type:'select',req:true,options:['Select…','Fully applicable – system creates/modifies/maintains electronic records used to meet FDA requirements','Partially applicable – system supports but does not directly create regulated records','Not applicable – with documented justification'],hint:'Part 11 applies to electronic records and signatures that are created, modified, maintained, archived, retrieved, or transmitted under FDA regulations. Non-compliance is a critical finding.'},
+          {id:'vp_annex11_scope',label:'EU Annex 11 Applicability',type:'select',req:true,options:['Select…','Fully applicable – GMP computerised system','Applicable – clinical trial system','Not applicable – with documented justification'],hint:'Annex 11 applies to all GMP-regulated computerised systems used by EU-licensed manufacturers.'},
+        ]
+      },
+      {
+        title: 'Validation Team & Responsibilities',
+        fields: [
+          {id:'vp_val_lead',label:'Validation Lead – Responsibilities',type:'textarea',req:true,hint:'Define responsibilities: owns validation plan, reviews and approves all test protocols, reviews deviations, signs off deliverables. Per Annex 11 §2, a qualified person must be identified.'},
+          {id:'vp_qa_role',label:'Quality Assurance – Responsibilities',type:'textarea',req:true,hint:'QA reviews and approves all validation documents, manages deviations, conducts final audit review before system goes live.'},
+          {id:'vp_it_role',label:'IT / Technical Team – Responsibilities',type:'textarea',req:true,hint:'Executes IQ, OQ, PQ protocols, documents results, raises and manages defects, provides technical specifications.'},
+          {id:'vp_business_role',label:'Business / System Owner – Responsibilities',type:'textarea',req:true,hint:'Defines and approves user requirements, participates in OQ/PQ, confirms business acceptance.'},
+          {id:'vp_vendor_role',label:'Vendor / Supplier – Responsibilities (if applicable)',type:'textarea',req:false,hint:'If using a third-party supplier, document their responsibilities. Per Annex 11 §3 and 21 CFR Part 11, supplier audits or questionnaires may be required.'},
+        ]
+      },
+      {
+        title: 'Deliverables & Schedule',
+        fields: [
+          {id:'vp_deliverables',label:'Validation Deliverables',type:'textarea',req:true,hint:'List all documents to be produced: Risk Assessment, URS, RRAT, PDS, Test Plan, IQ/OQ/PQ protocols, RTM, Defect Log, Test Summary Report, Validation Summary Report. Each must have an owner and target date.'},
+          {id:'vp_start_date',label:'Validation Start Date',type:'date',req:true,hint:'Date validation activities formally begin. Aligns with project plan.'},
+          {id:'vp_end_date',label:'Target Completion Date',type:'date',req:true,hint:'Date all deliverables are expected to be approved and system is ready for go-live.'},
+          {id:'vp_acceptance',label:'Validation Acceptance Criteria',type:'textarea',req:true,hint:'Define what constitutes successful validation: all critical and major requirements tested, no open critical defects, all deviations resolved or risk-accepted, all documents approved. These criteria must be met before go-live approval.'},
+        ]
+      },
+      {
+        title: 'Deviations & Change Control',
+        fields: [
+          {id:'vp_deviation_process',label:'Deviation Handling Process',type:'textarea',req:true,hint:'Describe how deviations from test protocols will be recorded, classified (critical/major/minor), investigated, and resolved. Per Annex 11 §10, deviations must be recorded and evaluated.'},
+          {id:'vp_change_control',label:'Change Control Reference',type:'text',req:true,hint:'Reference the SOP governing change control for this system, e.g. SOP-CC-001. Changes during validation must follow change control per 21 CFR Part 11 §11.10(k).'},
+        ]
+      }
+    ]
+  },
+  {
+    id: 2,
+    num: '03',
+    name: 'User Requirements Specification (URS)',
+    phase: 'Analysis',
+    abbr: 'URS',
+    desc: 'Defines what the system must do from the user and business perspective. The URS is the foundation of all subsequent design, testing, and traceability activities.',
+    sections: [
+      {
+        title: 'Document Information',
+        fields: [
+          {id:'urs_doc_id',label:'Document ID',type:'text',req:true,hint:'e.g. URS-SYS-001. All requirements receive a unique ID for traceability throughout the validation lifecycle.'},
+          {id:'urs_sys_name',label:'System Name',type:'text',req:true,hint:'Full system name as used in the Validation Plan and Risk Assessment.'},
+          {id:'urs_version',label:'Version',type:'text',req:true,hint:'Version history is mandatory. Changes to the URS after approval must go through change control.'},
+          {id:'urs_date',label:'Date',type:'date',req:true,hint:'Date of this version.'},
+          {id:'urs_author',label:'Author (Business/Validation Lead)',type:'text',req:true,hint:'Person who compiled these requirements. URS is typically authored by the business owner and/or BA, reviewed by the Validation Lead.'},
+          {id:'urs_approver',label:'Approved By',type:'text',req:true,hint:'The system owner must approve the URS before design begins. This is the contractual baseline.'},
+        ]
+      },
+      {
+        title: 'Business Context',
+        fields: [
+          {id:'urs_business_need',label:'Business Need / Problem Statement',type:'textarea',req:true,hint:'Why is this system needed? What business problem or regulatory obligation does it address? This justifies the validation investment.'},
+          {id:'urs_users',label:'Intended Users and User Roles',type:'textarea',req:true,hint:'List all user groups who will interact with the system, their roles, and general level of system access. Per Annex 11 §12, access controls must be defined per role.'},
+          {id:'urs_environment',label:'Operational Environment',type:'textarea',req:true,hint:'Describe the environment: GMP facility, clinical trial site, manufacturing, lab. Include any interface with other regulated systems. Per Annex 11 §4.4, the intended use environment must be documented.'},
+        ]
+      },
+      {
+        title: 'Functional Requirements',
+        fields: [
+          {id:'urs_func_reqs',label:'Functional Requirements',type:'textarea',req:true,hint:'List each functional requirement with a unique ID (e.g. FR-001, FR-002). Format: "The system shall [action] [object] [condition]." Each requirement must be testable. These will map directly to test cases in the RTM.'},
+          {id:'urs_user_access',label:'User Access & Authentication Requirements',type:'textarea',req:true,hint:'Define login, password policy, role-based access control, and session timeout requirements. 21 CFR Part 11 §11.10(d) requires limiting system access to authorised individuals.'},
+          {id:'urs_audit_trail',label:'Audit Trail Requirements',type:'textarea',req:true,hint:'CRITICAL: 21 CFR Part 11 §11.10(e) and Annex 11 §9 require that computerised systems create a secure, computer-generated, time-stamped audit trail. Specify what must be captured: who, what, when, and original vs. new value.'},
+          {id:'urs_esig',label:'Electronic Signature Requirements',type:'textarea',req:false,hint:'If the system uses electronic signatures: 21 CFR Part 11 Subpart C applies. Specify which actions require e-signatures, whether biometric or non-biometric, and that signatures must be linked to records and non-repudiable.'},
+          {id:'urs_data_integrity',label:'Data Integrity Requirements',type:'textarea',req:true,hint:'Per ALCOA+ principles: data must be Attributable, Legible, Contemporaneous, Original, Accurate. Define requirements for data backup, recovery, and protection against alteration per Annex 11 §7.1.'},
+        ]
+      },
+      {
+        title: 'Non-Functional Requirements',
+        fields: [
+          {id:'urs_performance',label:'Performance Requirements',type:'textarea',req:false,hint:'Response times, throughput, concurrent users. Define measurable thresholds that will be tested during OQ/PQ.'},
+          {id:'urs_availability',label:'Availability & Business Continuity',type:'textarea',req:false,hint:'Required uptime, maintenance windows, disaster recovery RTO/RPO. Annex 11 §16 requires business continuity plans for critical systems.'},
+          {id:'urs_security',label:'Security Requirements',type:'textarea',req:true,hint:'Data encryption (at rest and in transit), network security, physical security, penetration testing requirements. 21 CFR Part 11 §11.10(c) and Annex 11 §12 require physical and logical security controls.'},
+          {id:'urs_retention',label:'Data Retention Requirements',type:'textarea',req:true,hint:'How long must records be retained? For FDA: minimum as long as the product is marketed plus 1 year for 21 CFR Part 211.68. For EU GMP: minimum 5 years after batch release. Define archive and retrieval processes.'},
+          {id:'urs_interface',label:'System Interface Requirements',type:'textarea',req:false,hint:'Define all integrations with other systems (ERP, LIMS, MES). Interfaces with regulated systems require validation of the interface itself per Annex 11 §5.'},
+        ]
+      },
+      {
+        title: 'Compliance & Acceptance',
+        fields: [
+          {id:'urs_compliance_reqs',label:'Regulatory Compliance Requirements',type:'textarea',req:true,hint:'Explicitly state all regulatory requirements the system must satisfy: 21 CFR Part 11 electronic records, Annex 11 computerised systems, applicable GMP/GCP/GLP regulations.'},
+          {id:'urs_acceptance_criteria',label:'Overall Acceptance Criteria',type:'textarea',req:true,hint:'High-level criteria for accepting the system as validated: all requirements must have corresponding test cases, all critical requirements must pass with no open defects.'},
+          {id:'urs_assumptions',label:'Assumptions & Constraints',type:'textarea',req:false,hint:'Document any assumptions made in defining requirements and any known constraints (technical, budget, timeline, regulatory). These help prevent misunderstandings during design and testing.'},
+        ]
+      }
+    ]
+  },
+  {
+    id: 3,
+    num: '04',
+    name: 'Regulatory Requirements Alignment Tool (RRAT)',
+    phase: 'Analysis',
+    abbr: 'RRAT',
+    desc: 'Maps system capabilities and validation activities against specific regulatory requirements from 21 CFR Part 11 and EU Annex 11. Demonstrates compliance posture to auditors.',
+    sections: [
+      {
+        title: 'Document Information',
+        fields: [
+          {id:'rrat_doc_id',label:'Document ID',type:'text',req:true,hint:'e.g. RRAT-SYS-001. This document is often requested first during an FDA or EMA inspection.'},
+          {id:'rrat_sys_name',label:'System Name',type:'text',req:true,hint:'Must match exactly the system name used in Validation Plan and URS.'},
+          {id:'rrat_version',label:'Version',type:'text',req:true,hint:'Must be updated whenever the regulatory landscape changes or the system changes.'},
+          {id:'rrat_date',label:'Date',type:'date',req:true,hint:'Date of this version.'},
+          {id:'rrat_author',label:'Prepared By',type:'text',req:true,hint:'Typically prepared by the Validation Lead or QA team.'},
+          {id:'rrat_approver',label:'Approved By (QA)',type:'text',req:true,hint:'QA approval is required before this document is finalised.'},
+        ]
+      },
+      {
+        title: 'Regulatory Scope Declaration',
+        fields: [
+          {id:'rrat_fda_applicable',label:'21 CFR Part 11 – Applicability Determination',type:'select',req:true,options:['Select…','Fully applicable','Partially applicable – specify below','Not applicable – justification below'],hint:'FDA 21 CFR Part 11 applies when a system creates, modifies, maintains, archives, retrieves, or transmits electronic records that are required by FDA regulations. This is a legal determination, not a technical one.'},
+          {id:'rrat_fda_justification',label:'21 CFR Part 11 – Applicability Justification',type:'textarea',req:true,hint:'Document your applicability reasoning. If partially or not applicable, provide written justification that would withstand FDA scrutiny. Reference specific Part 11 sections.'},
+          {id:'rrat_annex_applicable',label:'EU Annex 11 – Applicability Determination',type:'select',req:true,options:['Select…','Fully applicable – GMP regulated system','Applicable – clinical system','Applicable – GCP/GLP system','Not applicable – justification below'],hint:'EU Annex 11 applies to all computerised systems used in GMP-regulated activities by EU-licensed manufacturers and importers.'},
+          {id:'rrat_annex_justification',label:'EU Annex 11 – Applicability Justification',type:'textarea',req:true,hint:'Describe how and where Annex 11 applies to this system. Reference the relevant Annex 11 sections (e.g. §4 Validation, §7 Data, §9 Audit Trails, §12 Security).'},
+        ]
+      },
+      {
+        title: '21 CFR Part 11 Requirements Alignment',
+        fields: [
+          {id:'rrat_11_10a',label:'§11.10(a) — Validation of Systems',type:'textarea',req:true,hint:'Requirement: Systems must be validated to ensure accuracy, reliability, consistent intended performance, and the ability to discern invalid or altered records. Document how your validation effort satisfies this.'},
+          {id:'rrat_11_10b',label:'§11.10(b) — Ability to Generate Accurate Copies',type:'textarea',req:true,hint:'Requirement: Systems must be able to produce accurate and complete copies of records in human readable and electronic form for inspection, review, and copying. Document the capability and how it will be tested.'},
+          {id:'rrat_11_10c',label:'§11.10(c) — Record Protection & Archival',type:'textarea',req:true,hint:'Requirement: Records must be protected to enable their accurate and ready retrieval throughout the records retention period. Document backup procedures, archival strategy, and retrieval testing.'},
+          {id:'rrat_11_10d',label:'§11.10(d) — System Access Limitation',type:'textarea',req:true,hint:'Requirement: System access must be limited to authorised individuals. Document role-based access controls, access provisioning process, and periodic access review.'},
+          {id:'rrat_11_10e',label:'§11.10(e) — Audit Trails',type:'textarea',req:true,hint:'CRITICAL: Secure, computer-generated, time-stamped audit trails must record operator entries and actions that create, modify, or delete electronic records. Audit trails must be retained for a period at least as long as the record and must not be alterable. Document your audit trail implementation.'},
+          {id:'rrat_11_10k',label:'§11.10(k) — Controls for Open Systems / Operational Checks',type:'textarea',req:true,hint:'Requirement: Use of appropriate controls to ensure that persons who use electronic signature and record systems have the education, training, and experience to perform their assigned tasks. Document training controls and SOP references.'},
+          {id:'rrat_11_50',label:'§11.50 — Signature Manifestations',type:'textarea',req:false,hint:'If electronic signatures are used: each must display the printed name of the signer, date/time signed, and the meaning of the signature. Document how your system satisfies this if applicable.'},
+          {id:'rrat_11_70',label:'§11.70 — Signature/Record Linking',type:'textarea',req:false,hint:'If electronic signatures are used: they must be linked to their respective records to ensure signatures cannot be excised, copied, or otherwise transferred to falsify another record. Document the technical implementation.'},
+        ]
+      },
+      {
+        title: 'EU Annex 11 Requirements Alignment',
+        fields: [
+          {id:'rrat_a11_4',label:'Annex 11 §4 — Validation',type:'textarea',req:true,hint:'Requirement: The application of risk management to computerised systems. Validation documentation must include risk assessment, validation plan, validation report, and relevant test protocols. Document your approach.'},
+          {id:'rrat_a11_7',label:'Annex 11 §7 — Data Storage',type:'textarea',req:true,hint:'Requirement: Data must be secured by both physical and electronic means against accidental or deliberate damage. Data integrity must be checked throughout the retention period. Document storage, backup, and integrity check mechanisms.'},
+          {id:'rrat_a11_9',label:'Annex 11 §9 — Audit Trails',type:'textarea',req:true,hint:'Requirement: Audit trails must be created that record time/date-stamped entries of operator changes to GMP relevant data. Reason for change must be documented. Audit trails must be available and convertible to human readable form. Document implementation.'},
+          {id:'rrat_a11_11',label:'Annex 11 §11 — Electronic Signatures',type:'textarea',req:false,hint:'Requirement: Electronic signatures must have the same impact as hand-written signatures. Include a record of date/time of signing. Define which activities require electronic signatures and how system enforces this.'},
+          {id:'rrat_a11_12',label:'Annex 11 §12 — Batch Release',type:'textarea',req:false,hint:'If applicable: only authorised persons should be able to release batches. Document how the system enforces authorised batch release workflows.'},
+          {id:'rrat_a11_13',label:'Annex 11 §13 — Countermeasures for Falsification',type:'textarea',req:true,hint:'Requirement: Data entered into a computerised system must be checked for correctness. Describe input validation, range checks, and other technical controls preventing invalid data entry.'},
+          {id:'rrat_a11_16',label:'Annex 11 §16 — Business Continuity',type:'textarea',req:true,hint:'Requirement: Arrangements must be in place to ensure continuity of support for GxP processes in the event of a system breakdown. Document failover, disaster recovery, and manual backup procedures.'},
+        ]
+      },
+      {
+        title: 'Gap Analysis & Action Plan',
+        fields: [
+          {id:'rrat_gaps',label:'Identified Compliance Gaps',type:'textarea',req:true,hint:'List any areas where the system currently does not fully satisfy a regulatory requirement. Be specific: which regulation, which section, what the gap is. Gaps identified here must have a remediation plan.'},
+          {id:'rrat_remediation',label:'Remediation Actions & Owners',type:'textarea',req:true,hint:'For each gap: define the remediation action, responsible owner, and target completion date. This becomes a tracked action list. Open gaps at go-live require documented risk acceptance by QA.'},
+          {id:'rrat_overall',label:'Overall Compliance Posture',type:'select',req:true,options:['Select…','Compliant – no material gaps identified','Substantially compliant – minor gaps with remediation plan','Non-compliant – significant gaps, go-live blocked pending remediation'],hint:'Overall assessment of the system\'s compliance posture based on this analysis. This conclusion is reviewed by QA.'},
+        ]
+      }
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentDoc = null;
+let currentSection = 0;
+let formData = {};
+let riskRows = [];
+let rtmRows = [];
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+showHome();
+
+// ─────────────────────────────────────────────
+// HOME
+// ─────────────────────────────────────────────
+function showHome() {
+  currentDoc = null;
+  setNavActive('home');
+  const analysisPhase = DOCS.map(d => `
+    <div class="doc-card" onclick="showDoc(${d.id})">
+      <div class="dc-num">${d.num}</div>
+      <div class="dc-name">${d.name}</div>
+      <div class="dc-tag">${d.abbr} · Analysis Phase</div>
+    </div>`).join('');
+
+  const lockedPhases = [
+    {label:'Design Phase', docs:['05 — Product Design Specification (PDS)','06 — Deployment Plan (DP)','07 — Configuration & Change Management Plan (CCMP)']},
+    {label:'Testing Phase', docs:['08 — Test Plan','09 — Test Scripts (IQ/OQ/PQ)','10 — Traceability Matrix (RTM)','11 — Defect & Issue Log','12 — Test Summary Report']},
+    {label:'Deployment Phase', docs:['13 — SOP / Work Instructions','14 — Validation Summary Report','15 — Change Log']},
+  ].map(p => `
+    <div class="phase-section">
+      <div class="phase-header">
+        <span class="phase-label ${p.label.toLowerCase().includes('design')?'design':p.label.toLowerCase().includes('test')?'devtest':'deploy'}">${p.label}</span>
+        <div class="phase-line"></div>
+      </div>
+      <div class="doc-cards">
+        ${p.docs.map(d=>`<div class="doc-card locked-card"><div class="dc-num">${d.split('—')[0].trim()}</div><div class="dc-name">${d.split('—')[1]?.trim()||d}</div><div class="dc-lock">🔒 Next build</div></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="home-hero">
+      <p class="eyebrow">GxP Validation Document Generator</p>
+      <h1 class="home-title">ValDoc</h1>
+      <p class="home-sub">Guided, structured document creation for pharma and life sciences validation teams. Generate compliant SDLC documentation without needing to know what goes where.</p>
+      <div class="badges-row">
+        <span class="badge blue">21 CFR Part 11</span>
+        <span class="badge green">EU Annex 11</span>
+        <span class="badge amber">GAMP 5</span>
+        <span class="badge purple">GxP Compliant</span>
+      </div>
+    </div>
+
+    <div class="phase-section">
+      <div class="phase-header">
+        <span class="phase-label analysis">Analysis Phase — Available Now</span>
+        <div class="phase-line"></div>
+      </div>
+      <div class="doc-cards">${analysisPhase}</div>
+    </div>
+
+    ${lockedPhases}
+
+    <div class="roadmap">
+      <div class="roadmap-title">Product Roadmap</div>
+      <div class="rm-rows">
+        <div class="rm-row">
+          <div class="rm-dot v1">V1</div>
+          <div class="rm-body"><strong>Analysis Phase — Current Release</strong><br>
+          <span>Docs 1–4: Risk Assessment, Validation Plan, URS, RRAT. GxP-guided input forms, 21 CFR Part 11 + Annex 11 aligned, PDF export.</span></div>
+        </div>
+        <div class="rm-row">
+          <div class="rm-dot v2">V2</div>
+          <div class="rm-body"><strong>Validation Lead Review Mode + Design & Testing Phases</strong><br>
+          <span>Docs 5–12. Collaboration layer: tech team submits draft → Validation Lead reviews, annotates, and approves within the tool. Approval logged with timestamp per Annex 11 §9.</span></div>
+        </div>
+        <div class="rm-row">
+          <div class="rm-dot v3">V3</div>
+          <div class="rm-body"><strong>Audit Trail + eSignature + Deployment Phase</strong><br>
+          <span>Docs 13–15. Full electronic signature workflow (21 CFR Part 11 §11.50), immutable audit trail, cross-document traceability dashboard.</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────
+// DOC FORM
+// ─────────────────────────────────────────────
+function showDoc(id) {
+  currentDoc = DOCS[id];
+  currentSection = 0;
+  formData[id] = formData[id] || {};
+  riskRows = riskRows.length ? riskRows : [{id:Date.now(),hazard:'',cause:'',effect:'',likelihood:'1',impact:'1',score:'1',mitigation:'',residual:'Low',owner:''}];
+  setNavActive(id);
+  renderForm();
+}
+
+function renderForm() {
+  const doc = currentDoc;
+  const totalSections = doc.sections.length;
+  const pct = Math.round(((currentSection+1)/totalSections)*100);
+
+  let sectionsHTML = '';
+  doc.sections.forEach((sec, si) => {
+    if(si !== currentSection) return;
+    sectionsHTML += `<div class="form-section">`;
+    sectionsHTML += `<div class="section-heading">${sec.title}</div>`;
+
+    if(sec.type === 'risk-table') {
+      sectionsHTML += `<div class="field-hint">${sec.hint}</div>`;
+      sectionsHTML += buildRiskTable();
+    } else {
+      sec.fields.forEach(f => {
+        sectionsHTML += buildField(f, doc.id);
+      });
+    }
+    sectionsHTML += `</div>`;
+  });
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="form-header">
+      <button class="form-back" onclick="showHome()">← Back to home</button>
+      <p class="form-eyebrow">Doc ${doc.num} · ${doc.phase} Phase</p>
+      <h1 class="form-title">${doc.name}</h1>
+      <p class="form-desc">${doc.desc}</p>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span>Section ${currentSection+1} of ${totalSections}: ${doc.sections[currentSection].title}</span>
+        <span>${pct}% complete</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+
+    <form id="doc-form" onsubmit="return false;">
+      ${sectionsHTML}
+      <div class="btn-row">
+        ${currentSection > 0 ? `<button class="btn secondary" onclick="prevSection()">← Previous</button>` : ''}
+        ${currentSection < totalSections-1
+          ? `<button class="btn primary" onclick="nextSection()">Next section →</button>`
+          : `<button class="btn success" onclick="generatePreview()">Generate Document ✓</button>`}
+        ${currentSection === totalSections-1 ? `<button class="btn secondary" onclick="clearForm()">Clear form</button>` : ''}
+      </div>
+    </form>`;
+
+  // Restore saved values
+  restoreValues(doc.id);
+}
+
+function buildField(f, docId) {
+  const saved = (formData[docId]||{})[f.id] || '';
+  let input = '';
+  if(f.type === 'textarea') {
+    input = `<textarea id="${f.id}" rows="4" ${f.req?'required':''} onchange="saveField(${docId},'${f.id}',this.value)">${saved}</textarea>`;
+  } else if(f.type === 'select') {
+    const opts = f.options.map(o => `<option value="${o}" ${saved===o?'selected':''}>${o}</option>`).join('');
+    input = `<select id="${f.id}" ${f.req?'required':''} onchange="saveField(${docId},'${f.id}',this.value)">${opts}</select>`;
+  } else {
+    input = `<input type="${f.type}" id="${f.id}" value="${saved}" ${f.req?'required':''} onchange="saveField(${docId},'${f.id}',this.value)">`;
+  }
+  return `<div class="field">
+    <div class="field-label">${f.label} ${f.req?'<span class="req">*</span>':''}</div>
+    <div class="field-hint">${f.hint}</div>
+    ${input}
+  </div>`;
+}
+
+function buildRiskTable() {
+  const rows = riskRows.map((r,i) => `
+    <tr>
+      <td><input type="text" value="${r.hazard}" oninput="riskRows[${i}].hazard=this.value" placeholder="e.g. Audit trail disabled"></td>
+      <td><input type="text" value="${r.cause}" oninput="riskRows[${i}].cause=this.value" placeholder="e.g. Config error"></td>
+      <td><input type="text" value="${r.effect}" oninput="riskRows[${i}].effect=this.value" placeholder="e.g. Regulatory non-compliance"></td>
+      <td><select oninput="riskRows[${i}].likelihood=this.value;updateRisk(${i})">
+        ${['1','2','3'].map(v=>`<option value="${v}" ${r.likelihood===v?'selected':''}>${v}</option>`).join('')}
+      </select></td>
+      <td><select oninput="riskRows[${i}].impact=this.value;updateRisk(${i})">
+        ${['1','2','3'].map(v=>`<option value="${v}" ${r.impact===v?'selected':''}>${v}</option>`).join('')}
+      </select></td>
+      <td id="score-${i}" style="font-weight:500;text-align:center;color:${riskColor(r.score)}">${r.score}</td>
+      <td><input type="text" value="${r.mitigation}" oninput="riskRows[${i}].mitigation=this.value" placeholder="Control / SOP reference"></td>
+      <td><select oninput="riskRows[${i}].residual=this.value">
+        ${['Low','Medium','High'].map(v=>`<option value="${v}" ${r.residual===v?'selected':''}>${v}</option>`).join('')}
+      </select></td>
+      <td><input type="text" value="${r.owner}" oninput="riskRows[${i}].owner=this.value" placeholder="Name / Role"></td>
+      <td><button class="del-row" onclick="deleteRiskRow(${i})">✕</button></td>
+    </tr>`).join('');
+
+  return `<table class="risk-table">
+    <thead><tr>
+      <th>Hazard / Risk</th><th>Root Cause</th><th>Potential Effect</th>
+      <th>L</th><th>I</th><th>Score</th>
+      <th>Mitigation / Control</th><th>Residual Risk</th><th>Owner</th><th></th>
+    </tr></thead>
+    <tbody id="risk-tbody">${rows}</tbody>
+  </table>
+  <button class="add-row-btn" onclick="addRiskRow()">+ Add risk row</button>`;
+}
+
+function riskColor(score) {
+  const s = parseInt(score);
+  if(s >= 6) return '#A32D2D';
+  if(s >= 3) return '#854F0B';
+  return '#3B6D11';
+}
+
+function updateRisk(i) {
+  const score = parseInt(riskRows[i].likelihood) * parseInt(riskRows[i].impact);
+  riskRows[i].score = score.toString();
+  const el = document.getElementById('score-'+i);
+  if(el) { el.textContent = score; el.style.color = riskColor(score); }
+}
+
+function addRiskRow() {
+  riskRows.push({id:Date.now(),hazard:'',cause:'',effect:'',likelihood:'1',impact:'1',score:'1',mitigation:'',residual:'Low',owner:''});
+  renderForm();
+}
+
+function deleteRiskRow(i) {
+  riskRows.splice(i,1);
+  if(!riskRows.length) riskRows.push({id:Date.now(),hazard:'',cause:'',effect:'',likelihood:'1',impact:'1',score:'1',mitigation:'',residual:'Low',owner:''});
+  renderForm();
+}
+
+function saveField(docId, fieldId, value) {
+  if(!formData[docId]) formData[docId] = {};
+  formData[docId][fieldId] = value;
+}
+
+function restoreValues(docId) {
+  const data = formData[docId] || {};
+  Object.entries(data).forEach(([k,v]) => {
+    const el = document.getElementById(k);
+    if(el && el.tagName !== 'SELECT') el.value = v;
+  });
+}
+
+function nextSection() {
+  saveCurrentSection();
+  if(currentSection < currentDoc.sections.length - 1) {
+    currentSection++;
+    renderForm();
+    window.scrollTo(0,0);
+  }
+}
+
+function prevSection() {
+  saveCurrentSection();
+  if(currentSection > 0) {
+    currentSection--;
+    renderForm();
+    window.scrollTo(0,0);
+  }
+}
+
+function saveCurrentSection() {
+  const sec = currentDoc.sections[currentSection];
+  if(!sec.fields) return;
+  sec.fields.forEach(f => {
+    const el = document.getElementById(f.id);
+    if(el) saveField(currentDoc.id, f.id, el.value);
+  });
+}
+
+function clearForm() {
+  if(confirm('Clear all data for this document?')) {
+    formData[currentDoc.id] = {};
+    riskRows = [{id:Date.now(),hazard:'',cause:'',effect:'',likelihood:'1',impact:'1',score:'1',mitigation:'',residual:'Low',owner:''}];
+    currentSection = 0;
+    renderForm();
+  }
+}
+
+// ─────────────────────────────────────────────
+// PREVIEW / GENERATE
+// ─────────────────────────────────────────────
+function generatePreview() {
+  saveCurrentSection();
+  const doc = currentDoc;
+  const data = formData[doc.id] || {};
+  const now = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+
+  let body = '';
+
+  if(doc.id === 0) body = buildRAPreview(data);
+  else if(doc.id === 1) body = buildVPPreview(data);
+  else if(doc.id === 2) body = buildURSPreview(data);
+  else if(doc.id === 3) body = buildRRATPreview(data);
+
+  const preview = `
+    <div class="preview-wrap" id="preview-doc">
+      <div class="doc-header-bar">
+        <span>ValDoc — GxP Validation Document Generator</span>
+        <div class="doc-std-badges">
+          <span class="doc-std-badge">21 CFR Part 11</span>
+          <span class="doc-std-badge">EU Annex 11</span>
+          <span class="doc-std-badge">GAMP 5</span>
+        </div>
+      </div>
+      <h1>${doc.name}</h1>
+      <p style="text-align:center;color:#666;font-size:12px;margin-bottom:1.5rem">Document ID: ${data[Object.keys(data)[0]]||'—'} &nbsp;|&nbsp; Generated: ${now}</p>
+      <div class="preview-meta">
+        ${Object.entries(data).slice(0,6).filter(([k,v])=>v&&!v.includes('Select')).map(([k,v])=>`
+          <div class="preview-meta-item">
+            <span class="preview-meta-label">${labelFor(k,doc)}</span>
+            <span class="preview-meta-value">${v}</span>
+          </div>`).join('')}
+      </div>
+      ${body}
+      <div class="sig-block">
+        <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Prepared By / Date</div></div>
+        <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Reviewed By (QA) / Date</div></div>
+        <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Approved By / Date</div></div>
+      </div>
+      <p style="font-size:10px;color:#aaa;text-align:center;margin-top:1.5rem">Generated by ValDoc v1.0 · ${now} · This document must be reviewed and approved before use in a regulated environment.</p>
+    </div>`;
+
+  document.getElementById('main-content').innerHTML = `
+    <button class="form-back" onclick="showDoc(${doc.id})">← Back to form</button>
+    <div class="btn-row" style="margin-bottom:1.5rem">
+      <button class="btn success" onclick="printDoc()">⬇ Export PDF</button>
+      <button class="btn secondary" onclick="showDoc(${doc.id})">Edit document</button>
+    </div>
+    ${preview}`;
+}
+
+function labelFor(fieldId, doc) {
+  for(const sec of doc.sections) {
+    if(!sec.fields) continue;
+    const f = sec.fields.find(x=>x.id===fieldId);
+    if(f) return f.label;
+  }
+  return fieldId;
+}
+
+function v(data, key) { return data[key] && !data[key].includes('Select') ? data[key] : '—'; }
+function s(data, key) { return data[key] && !data[key].includes('Select') ? `<p>${data[key].replace(/\n/g,'<br>')}</p>` : '<p style="color:#aaa;font-style:italic">Not provided</p>'; }
+
+function buildRAPreview(d) {
+  const riskTableRows = riskRows.map(r=>`
+    <tr><td>${r.hazard||'—'}</td><td>${r.cause||'—'}</td><td>${r.effect||'—'}</td>
+    <td>${r.likelihood}</td><td>${r.impact}</td>
+    <td style="font-weight:600;color:${riskColor(r.score)}">${r.score}</td>
+    <td>${r.mitigation||'—'}</td><td>${r.residual}</td><td>${r.owner||'—'}</td></tr>`).join('');
+  return `
+    <h2>1. Purpose & Scope</h2>
+    <p>This Risk Assessment identifies, evaluates, and prioritises risks associated with the validation of <strong>${v(d,'ra_sys_name')}</strong>. It is prepared in accordance with GAMP 5 risk-based approach, 21 CFR Part 11, and EU GMP Annex 11 §1.</p>
+    <h2>2. System Classification</h2>
+    <p><strong>GAMP 5 Category:</strong> ${v(d,'ra_gamp_cat')}</p>
+    <p><strong>GxP Impact:</strong> ${v(d,'ra_gxp_impact')}</p>
+    <h3>System Purpose</h3>${s(d,'ra_purpose')}
+    <h3>Applicable Regulations</h3>${s(d,'ra_regulatory_scope')}
+    <h3>Regulated Data Types</h3>${s(d,'ra_data_types')}
+    <h2>3. Risk Identification & Evaluation</h2>
+    <p><em>Risk Score = Likelihood × Impact. 1–2: Low (green), 3–4: Medium (amber), 6–9: High (red).</em></p>
+    <table><thead><tr><th>Hazard</th><th>Root Cause</th><th>Effect</th><th>L</th><th>I</th><th>Score</th><th>Mitigation</th><th>Residual</th><th>Owner</th></tr></thead>
+    <tbody>${riskTableRows}</tbody></table>
+    <h2>4. Residual Risk & Acceptance</h2>
+    <h3>Residual Risk Statement</h3>${s(d,'ra_residual')}
+    <p><strong>Acceptance Decision:</strong> ${v(d,'ra_approval')}</p>
+    <p><strong>Review Frequency:</strong> ${v(d,'ra_review_freq')}</p>
+    <h3>Additional Notes</h3>${s(d,'ra_notes')}`;
+}
+
+function buildVPPreview(d) {
+  return `
+    <h2>1. Purpose</h2>
+    <p>This Validation Plan defines the scope, approach, responsibilities, deliverables, and acceptance criteria for the validation of <strong>${v(d,'vp_sys_name')}</strong>, in compliance with 21 CFR Part 11, EU GMP Annex 11, and GAMP 5.</p>
+    <h2>2. Scope</h2>
+    <h3>Validation Objective</h3>${s(d,'vp_objective')}
+    <h3>In Scope</h3>${s(d,'vp_scope_incl')}
+    <h3>Out of Scope</h3>${s(d,'vp_scope_excl')}
+    <p><strong>Validation Approach:</strong> ${v(d,'vp_approach')}</p>
+    <p><strong>GAMP 5 Category:</strong> ${v(d,'vp_gamp_cat')}</p>
+    <h2>3. Regulatory Framework</h2>
+    <h3>Applicable Regulations</h3>${s(d,'vp_regs')}
+    <p><strong>21 CFR Part 11 Applicability:</strong> ${v(d,'vp_part11_scope')}</p>
+    <p><strong>EU Annex 11 Applicability:</strong> ${v(d,'vp_annex11_scope')}</p>
+    <h2>4. Roles & Responsibilities</h2>
+    <h3>Validation Lead</h3>${s(d,'vp_val_lead')}
+    <h3>Quality Assurance</h3>${s(d,'vp_qa_role')}
+    <h3>IT / Technical Team</h3>${s(d,'vp_it_role')}
+    <h3>Business / System Owner</h3>${s(d,'vp_business_role')}
+    <h3>Vendor / Supplier</h3>${s(d,'vp_vendor_role')}
+    <h2>5. Deliverables & Schedule</h2>
+    <h3>Validation Deliverables</h3>${s(d,'vp_deliverables')}
+    <p><strong>Validation Start:</strong> ${v(d,'vp_start_date')}</p>
+    <p><strong>Target Completion:</strong> ${v(d,'vp_end_date')}</p>
+    <h3>Acceptance Criteria</h3>${s(d,'vp_acceptance')}
+    <h2>6. Deviation & Change Control</h2>
+    <h3>Deviation Handling</h3>${s(d,'vp_deviation_process')}
+    <p><strong>Change Control SOP:</strong> ${v(d,'vp_change_control')}</p>`;
+}
+
+function buildURSPreview(d) {
+  return `
+    <h2>1. Purpose</h2>
+    <p>This User Requirements Specification defines the functional and non-functional requirements for <strong>${v(d,'urs_sys_name')}</strong>. It serves as the baseline for design, development, and validation testing activities.</p>
+    <h2>2. Business Context</h2>
+    <h3>Business Need</h3>${s(d,'urs_business_need')}
+    <h3>Intended Users & Roles</h3>${s(d,'urs_users')}
+    <h3>Operational Environment</h3>${s(d,'urs_environment')}
+    <h2>3. Functional Requirements</h2>
+    <h3>Core Functional Requirements</h3>${s(d,'urs_func_reqs')}
+    <h3>User Access & Authentication (21 CFR Part 11 §11.10(d))</h3>${s(d,'urs_user_access')}
+    <h3>Audit Trail Requirements (21 CFR Part 11 §11.10(e) / Annex 11 §9)</h3>${s(d,'urs_audit_trail')}
+    <h3>Electronic Signature Requirements (21 CFR Part 11 §11.50)</h3>${s(d,'urs_esig')}
+    <h3>Data Integrity Requirements (ALCOA+)</h3>${s(d,'urs_data_integrity')}
+    <h2>4. Non-Functional Requirements</h2>
+    <h3>Performance</h3>${s(d,'urs_performance')}
+    <h3>Availability & Business Continuity (Annex 11 §16)</h3>${s(d,'urs_availability')}
+    <h3>Security (21 CFR Part 11 §11.10(c) / Annex 11 §12)</h3>${s(d,'urs_security')}
+    <h3>Data Retention</h3>${s(d,'urs_retention')}
+    <h3>System Interfaces</h3>${s(d,'urs_interface')}
+    <h2>5. Compliance & Acceptance</h2>
+    <h3>Regulatory Compliance Requirements</h3>${s(d,'urs_compliance_reqs')}
+    <h3>Acceptance Criteria</h3>${s(d,'urs_acceptance_criteria')}
+    <h3>Assumptions & Constraints</h3>${s(d,'urs_assumptions')}`;
+}
+
+function buildRRATPreview(d) {
+  return `
+    <h2>1. Purpose</h2>
+    <p>This Regulatory Requirements Alignment Tool (RRAT) maps the capabilities and validation activities of <strong>${v(d,'rrat_sys_name')}</strong> against specific requirements of 21 CFR Part 11 and EU GMP Annex 11. It is intended to demonstrate regulatory compliance posture to auditors and inspectors.</p>
+    <h2>2. Regulatory Scope</h2>
+    <p><strong>21 CFR Part 11 Applicability:</strong> ${v(d,'rrat_fda_applicable')}</p>
+    <h3>FDA Applicability Justification</h3>${s(d,'rrat_fda_justification')}
+    <p><strong>EU Annex 11 Applicability:</strong> ${v(d,'rrat_annex_applicable')}</p>
+    <h3>Annex 11 Applicability Justification</h3>${s(d,'rrat_annex_justification')}
+    <h2>3. 21 CFR Part 11 Alignment</h2>
+    <table><thead><tr><th>Regulation Section</th><th>Requirement Summary</th><th>System Implementation</th></tr></thead><tbody>
+    <tr><td>§11.10(a)</td><td>System Validation</td><td>${v(d,'rrat_11_10a')}</td></tr>
+    <tr><td>§11.10(b)</td><td>Accurate Copies of Records</td><td>${v(d,'rrat_11_10b')}</td></tr>
+    <tr><td>§11.10(c)</td><td>Record Protection & Archival</td><td>${v(d,'rrat_11_10c')}</td></tr>
+    <tr><td>§11.10(d)</td><td>System Access Limitation</td><td>${v(d,'rrat_11_10d')}</td></tr>
+    <tr><td>§11.10(e)</td><td>Audit Trails</td><td>${v(d,'rrat_11_10e')}</td></tr>
+    <tr><td>§11.10(k)</td><td>Operational Checks / Training</td><td>${v(d,'rrat_11_10k')}</td></tr>
+    <tr><td>§11.50</td><td>Signature Manifestations</td><td>${v(d,'rrat_11_50')}</td></tr>
+    <tr><td>§11.70</td><td>Signature / Record Linking</td><td>${v(d,'rrat_11_70')}</td></tr>
+    </tbody></table>
+    <h2>4. EU Annex 11 Alignment</h2>
+    <table><thead><tr><th>Annex 11 Section</th><th>Requirement Summary</th><th>System Implementation</th></tr></thead><tbody>
+    <tr><td>§4</td><td>Validation</td><td>${v(d,'rrat_a11_4')}</td></tr>
+    <tr><td>§7</td><td>Data Storage</td><td>${v(d,'rrat_a11_7')}</td></tr>
+    <tr><td>§9</td><td>Audit Trails</td><td>${v(d,'rrat_a11_9')}</td></tr>
+    <tr><td>§11</td><td>Electronic Signatures</td><td>${v(d,'rrat_a11_11')}</td></tr>
+    <tr><td>§12</td><td>Batch Release</td><td>${v(d,'rrat_a11_12')}</td></tr>
+    <tr><td>§13</td><td>Countermeasures for Falsification</td><td>${v(d,'rrat_a11_13')}</td></tr>
+    <tr><td>§16</td><td>Business Continuity</td><td>${v(d,'rrat_a11_16')}</td></tr>
+    </tbody></table>
+    <h2>5. Gap Analysis</h2>
+    <h3>Identified Gaps</h3>${s(d,'rrat_gaps')}
+    <h3>Remediation Plan</h3>${s(d,'rrat_remediation')}
+    <p><strong>Overall Compliance Posture:</strong> ${v(d,'rrat_overall')}</p>`;
+}
+
+function printDoc() {
+  window.print();
+}
+
+// ─────────────────────────────────────────────
+// NAV HELPERS
+// ─────────────────────────────────────────────
+function setNavActive(key) {
+  document.querySelectorAll('.doc-item').forEach(el => el.classList.remove('active'));
+  const target = key === 'home' ? document.getElementById('nav-home') : document.getElementById('nav-'+key);
+  if(target) target.classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
